@@ -1,0 +1,15 @@
+Model Evaluation Metrics
+========================
+
+Train Set:
+  Accuracy: 1.0000
+  F1 Score: 0.9974
+  PR AUC: 1.0000
+  ROC AUC: 1.0000
+
+Test Set:
+  Accuracy: 0.9995
+  F1 Score: 0.8523
+  PR AUC: 0.8227
+  ROC AUC: 0.9703
+

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Environment
+.env
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Models - Allow trained model (only 523KB)
+# models/*.pkl  # Commented out to allow xgb_fraud_model.pkl
+!models/.gitkeep
+
+# Data cache
+*.cache
