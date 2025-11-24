@@ -1,14 +1,32 @@
 [theme]
-primaryColor = "#2ecc71"
-backgroundColor = "#0f1419"
-secondaryBackgroundColor = "#1a472a"
-textColor = "#ffffff"
+# Primary color for interactive elements (red/pink for fraud alert theme)
+primaryColor = "#FF4B4B"
+
+# Background color for the main content area (dark mode)
+backgroundColor = "#0E1117"
+
+# Background color for sidebar and most interactive widgets (slightly lighter dark)
+secondaryBackgroundColor = "#262730"
+
+# Text color for all text elements
+textColor = "#FAFAFA"
+
+# Font family
 font = "sans serif"
 
 [server]
+# Run in headless mode (no browser auto-opens)
 headless = true
-enableCORS = false
+
+# Port to run the app on
 port = 8501
 
+# Disable CORS for security
+enableCORS = false
+
+# Maximum upload size (in MB) - for batch prediction files
+maxUploadSize = 200
+
 [browser]
+# Gather usage stats (set to false for privacy)
 gatherUsageStats = false
