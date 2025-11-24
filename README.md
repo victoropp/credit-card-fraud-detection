@@ -12,7 +12,7 @@ A state-of-the-art, real-time credit card fraud detection system that addresses 
 
 ## Key Features
 
-- **Advanced Modeling**: Utilizes XGBoost with SMOTE for robust fraud detection on highly imbalanced data
+- **Advanced Modeling**: Utilizes XGBoost with scale_pos_weight optimization for robust fraud detection on highly imbalanced data
 - **Explainability**: Integrates SHAP values to explain model predictions, providing transparency and trust
 - **Real-time Deployment**: Features a low-latency FastAPI backend for inference (<100ms response time)
 - **Interactive Dashboard**: Includes a Streamlit dashboard for visualizing model performance and testing transactions
@@ -126,7 +126,7 @@ credit_card_fraud/
 ### Running the Streamlit Dashboard
 
 ```bash
-streamlit run deployment/streamlit_app.py
+streamlit run Home.py
 ```
 
 The dashboard provides:
@@ -134,6 +134,7 @@ The dashboard provides:
 - Real-time transaction fraud prediction
 - SHAP explainability visualizations
 - Interactive feature importance charts
+- What-If analysis with adjustable features
 
 ### Running the FastAPI Backend
 
@@ -182,15 +183,15 @@ Predict fraud probability for a transaction
 
 ### Data Preprocessing
 - Handled highly imbalanced dataset (0.172% fraud rate)
-- Applied SMOTE (Synthetic Minority Over-sampling Technique)
-- Scaled amount feature using StandardScaler
-- Train-test split with stratification
+- Features already PCA-transformed (provided by dataset)
+- Train-test split with stratification (80/20, random_state=42)
 
 ### Model Training
 - **Algorithm**: XGBoost Classifier
-- **Hyperparameter Tuning**: Grid search with cross-validation
+- **Class Balancing**: scale_pos_weight parameter (ratio = count(negative) / count(positive))
+- **Hyperparameters**: 200 estimators, max_depth=6, learning_rate=0.1
+- **Key Metric**: PR-AUC (0.82) - critical for imbalanced datasets
 - **Evaluation Metrics**: ROC-AUC, Precision, Recall, F1-Score
-- **Class Balancing**: SMOTE + class weights
 
 ### Explainability
 - SHAP (SHapley Additive exPlanations) for feature importance
@@ -199,10 +200,36 @@ Predict fraud probability for a transaction
 
 ## Deployment
 
-### Streamlit Cloud
+### Streamlit Cloud Deployment
+
+1. **Push to GitHub:**
+   ```bash
+   git remote add origin https://github.com/yourusername/credit-card-fraud-detection.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+2. **Connect to Streamlit Cloud:**
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Connect your GitHub repository
+   - Select this repository
+   - Set main file: `Home.py`
+   - Deploy!
+
+3. **Note:** The 144MB dataset will be automatically pulled via Git LFS.
+
+### Local Development
+
 ```bash
-# Ensure .streamlit/config.toml is configured
+# Run Streamlit dashboard
+streamlit run Home.py
+
+# Or run directly from deployment folder
 streamlit run deployment/streamlit_app.py
+
+# Run FastAPI backend (separate terminal)
+cd deployment
+uvicorn app:app --reload
 ```
 
 ### Docker (Optional)
@@ -212,7 +239,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
-CMD ["uvicorn", "deployment.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "deployment.app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ## Technologies Used
@@ -225,7 +252,7 @@ CMD ["uvicorn", "deployment.api:app", "--host", "0.0.0.0", "--port", "8000"]
 - **Scikit-learn**: Machine learning utilities
 - **Pandas & NumPy**: Data manipulation
 - **Plotly & Seaborn**: Data visualization
-- **imbalanced-learn**: SMOTE implementation
+- **imbalanced-learn**: Sampling techniques library
 
 ## Future Enhancements
 
