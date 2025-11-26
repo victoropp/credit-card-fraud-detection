@@ -1,15 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import requests
 import plotly.graph_objects as go
 import plotly.express as px
 import os
 import sys
+import json
+import joblib
+from pathlib import Path
 
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-from data_loader import load_data
 
 # Page Config
 st.set_page_config(
@@ -68,22 +69,26 @@ st.sidebar.markdown("### ℹ️ Technical Specifications")
 st.sidebar.info(
     """
     **Core Technology:**
-    - **Algorithm:** XGBoost Classifier (Scale_pos_weight optimized)
-    - **Interpretability:** SHAP (Game Theoretic Approach)
-    - **Serving:** FastAPI (Asynchronous backend)
+    - **Algorithm:** XGBoost Classifier
+    - **Interpretability:** SHAP Values
+    - **ROC-AUC:** 97%+
     
     **Capabilities:**
-    - **Precision-Recall Optimization:** Tuned for imbalanced datasets.
-    - **Counterfactual Analysis:** Real-time "What-If" simulation.
+    - Real-time fraud detection
+    - Counterfactual "What-If" analysis
+    - Model explainability
     """
 )
 
-api_url = st.sidebar.text_input("API Endpoint", "http://localhost:8000/predict")
+
 
 # Load Data - use relative path from project root
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_PATH = PROJECT_ROOT / "data" / "creditcard.csv"
+
+MODEL_PATH = PROJECT_ROOT / "models" / "xgb_fraud_model.pkl"
+RESULTS_DIR = PROJECT_ROOT / "results"
 
 @st.cache_data
 def get_data():
@@ -94,9 +99,34 @@ def get_data():
         st.error(f"Error loading data: {e}")
         return None
 
-df = get_data()
+@st.cache_resource
+def load_model():
+    try:
+        model = joblib.load(MODEL_PATH)
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
 
-if df is not None:
+def predict_fraud(model, features):
+    features_array = np.array(features).reshape(1, -1)
+    prob = model.predict_proba(features_array)[0][1]
+    return prob, prob > 0.5
+
+def get_shap_values(model, features):
+    try:
+        import shap
+        features_array = np.array(features).reshape(1, -1)
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(features_array)
+        return shap_values[0].tolist()
+    except:
+        return []
+
+df = get_data()
+model = load_model()
+
+if df is not None and model is not None:
     # Main Layout
     col1, col2 = st.columns([1, 2])
     
@@ -155,21 +185,15 @@ if df is not None:
             
             if st.button("Analyze Transaction"):
                 with st.spinner("Analyzing with AI Model..."):
-                    try:
-                        response = requests.post(api_url, json={"features": current_features})
-                        if response.status_code == 200:
-                            result = response.json()
-                            prob = result['fraud_probability']
-                            is_fraud = result['is_fraud']
-                            shap_values = result.get('shap_values', [])
-                            
-                            # Store result in session state to persist
-                            st.session_state['result'] = result
-                            st.session_state['features'] = current_features
-                        else:
-                            st.error(f"API Error: {response.status_code}")
-                    except Exception as e:
-                        st.error(f"Connection Error: {e}")
+                    prob, is_fraud = predict_fraud(model, current_features)
+                    shap_values = get_shap_values(model, current_features)
+                    
+                    st.session_state['result'] = {
+                        'fraud_probability': prob,
+                        'is_fraud': is_fraud,
+                        'shap_values': shap_values
+                    }
+                    st.session_state['features'] = current_features
 
     with col2:
         st.subheader("📊 Real-time Analysis Results")
@@ -239,11 +263,9 @@ if df is not None:
     st.subheader("📈 Model Performance & Validation")
     
     # Load metrics
-    RESULTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'results')
-    METRICS_PATH = os.path.join(RESULTS_DIR, 'metrics.json')
+    METRICS_PATH = RESULTS_DIR / 'metrics.json'
     
-    if os.path.exists(METRICS_PATH):
-        import json
+    if METRICS_PATH.exists():
         with open(METRICS_PATH, 'r') as f:
             metrics = json.load(f)
         
@@ -283,7 +305,7 @@ if df is not None:
         with tab1:
             col_cm1, col_cm2 = st.columns(2)
             with col_cm1:
-                st.image(os.path.join(RESULTS_DIR, 'test_confusion_matrix.png'), caption="Test Confusion Matrix", use_container_width=True)
+                st.image(str(RESULTS_DIR / 'test_confusion_matrix.png'), caption="Test Confusion Matrix", use_container_width=True)
             with col_cm2:
                 st.markdown("""
                 **Interpretation:**
@@ -296,7 +318,7 @@ if df is not None:
         with tab2:
             col_pr1, col_pr2 = st.columns(2)
             with col_pr1:
-                st.image(os.path.join(RESULTS_DIR, 'test_pr_curve.png'), caption="Test PR Curve", use_container_width=True)
+                st.image(str(RESULTS_DIR / 'test_pr_curve.png'), caption="Test PR Curve", use_container_width=True)
             with col_pr2:
                 st.markdown("""
                 **Why this matters:**
@@ -306,11 +328,13 @@ if df is not None:
                 """)
                 
         with tab3:
-            st.image(os.path.join(RESULTS_DIR, 'training_loss.png'), caption="XGBoost Training History", use_container_width=True)
+            st.image(str(RESULTS_DIR / 'training_loss.png'), caption="XGBoost Training History", use_container_width=True)
             st.caption("Shows the model converging without overfitting (Train and Test loss decrease together).")
             
     else:
         st.warning("Metrics not found. Please run `src/generate_metrics.py` first.")
 
-else:
-    st.warning("Data not found. Please check the path.")
+elif df is None:
+    st.error("Data file not found. Please ensure data/creditcard.csv exists.")
+elif model is None:
+    st.error("Model file not found. Please ensure models/xgb_fraud_model.pkl exists.")
